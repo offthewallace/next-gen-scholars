@@ -4,11 +4,17 @@
 
 {% macro render_menu_items(endpoints) %}
     {% for endpoint, name, icon in endpoints %}
-        <a class="item {% if request.endpoint == endpoint %}active{% endif %}" href="{{ url_for(endpoint) }}">
-            {% if icon %}
-                <i class="{{ icon }} icon"></i>
-            {% endif %}
-            {{ name | safe }}
+        {% set href_url = url_for(endpoint) %}
+        {% if endpoint == 'student.dashboard'%}
+          {% set endpoint = 'student.checklist' %}
+        {% endif %}
+
+        <a class="item {% if request.endpoint == endpoint %}active{% endif %}" href= "{{ href_url }}">
+      
+          {% if icon %}
+              <i class="{{ icon }} icon"></i>
+          {% endif %}
+          {{ name | safe }}
         </a>
     {% endfor %}
 {% endmacro %}
@@ -63,7 +69,7 @@
 {% macro account_items(current_user) %}
     {% if not current_user.is_authenticated %}
       {% set endpoints = [
-        ('account.login', 'Log In', 'sign in')
+     ('account.login', 'Log In', 'sign in')
       ] %}
       {{ render_menu_items(endpoints) }}
     {% endif %}
