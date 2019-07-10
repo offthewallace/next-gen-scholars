@@ -69,7 +69,7 @@
 {% macro account_items(current_user) %}
     {% if not current_user.is_authenticated %}
       {% set endpoints = [
-      ('account.register', 'Register', 'list layout'), ('account.login', 'Log In', 'sign in')
+     ('account.login', 'Log In', 'sign in')
       ] %}
       {{ render_menu_items(endpoints) }}
     {% endif %}
