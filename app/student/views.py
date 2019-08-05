@@ -1,6 +1,6 @@
 import datetime
 from flask import (abort, flash, redirect, render_template, url_for, request,
-                   jsonify)
+                   jsonify, Flask)
 from flask_login import current_user, login_required
 from ..models import TestScore, RecommendationLetter, Interest, Essay, College, Major, StudentProfile, ScattergramData, Acceptance, StudentScholarship
 from .. import db, csrf
@@ -27,6 +27,7 @@ os.environ[
     'OAUTHLIB_INSECURE_TRANSPORT'] = '1'  # TODO: remove before production?
 
 import random #for fake college interest
+app = Flask(__name__)
 
 #load student profile, test scores for profile and comparer
 def load_student_profile(current_user):
@@ -154,6 +155,7 @@ CLIENT_SECRETS_FILE = os.environ.get('CLIENT_SECRETS_FILE')
 @login_required
 def authorize_calendar():
     # Create flow instance to manage the OAuth 2.0 Authorization Grant Flow steps.
+    CLIENT_SECRETS_FILE = os.environ.get('CLIENT_SECRETS_FILE')
     flow = google_auth_oauthlib.flow.Flow.from_client_secrets_file(
         CLIENT_SECRETS_FILE, scopes=SCOPES)
     flow.redirect_uri = url_for('student.oauth2callback', _external=True)
@@ -911,6 +913,8 @@ def add_to_cal(student_profile_id, text, deadline):
         'scopes': student_profile.cal_scopes
     }
 
+    app.logger.error('done w credentials')
+
     credentials = google.oauth2.credentials.Credentials(**credentials_json)
     service = googleapiclient.discovery.build(
         'calendar', 'v3', credentials=credentials)
@@ -929,6 +933,8 @@ def add_to_cal(student_profile_id, text, deadline):
         },
     }
 
+    app.logger.error('done creating event')
+
     event = service.events().insert(
         calendarId='primary', body=event_body).execute()
     student_profile.cal_token = credentials.token
@@ -939,6 +945,9 @@ def add_to_cal(student_profile_id, text, deadline):
     student_profile.cal_scopes = credentials.scopes
     db.session.add(student_profile)
     db.session.commit()
+
+    app.logger.error('done ')
+
     return {"event_id": event.get('id'), "event_created": True}
 
 
@@ -1087,13 +1096,16 @@ def update_checklist_item(item_id):
             abort(404)
         form = EditChecklistItemForm(item_text=item.text, date=item.deadline)
         if form.validate_on_submit():
-            if item.deadline is not None and form.date.data is not None:
-                update_event(item.cal_event_id, form.item_text.data,
-                             form.date.data)
-            else:
-                if item.deadline is None and form.date.data is not None:
-                    add_to_cal(item.assignee_id, form.item_text.data,
-                               form.date.data)
+            token_uri = current_user.student_profile.cal_token_uri
+            if token_uri is not None:
+                if item.deadline is not None and form.date.data is not None:
+                    update_event(item.cal_event_id, form.item_text.data,
+                                form.date.data)
+                else:
+                    if item.deadline is None and form.date.data is not None:
+                        add_to_cal(item.assignee_id, form.item_text.data,
+                                form.date.data)
+            
             item.text = form.item_text.data
             item.deadline = form.date.data
             db.session.add(item)
